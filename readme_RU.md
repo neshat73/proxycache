@@ -1,5 +1,6 @@
 
-<img width="1000"  alt="image_" src="https://github.com/user-attachments/assets/cd766366-ea23-4d30-9e62-600182ce9e64" />
+<img width="1000"  alt="image_" src="https://github.com/user-attachments/assets/a7e0e1d1-38c3-44fa-84e1-e7764ada3131" />
+
 
 ### Описание проекта
 
