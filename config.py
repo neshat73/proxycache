@@ -35,7 +35,7 @@ BIG_THRESHOLD_WORDS = int(os.getenv("BIG_THRESHOLD_WORDS", "500"))
 LCP_TH = float(os.getenv("LCP_TH", "0.6"))
 
 # Meta dir
-META_DIR = os.getenv("META_DIR", "./kv_meta")
+META_DIR = os.path.join(os.getcwd(), os.getenv("META_DIR", "kv_meta"))
 os.makedirs(META_DIR, exist_ok=True)
 
 # HTTP timeout

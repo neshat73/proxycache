@@ -6,7 +6,7 @@
 Raw-хэширование: raw_prefix без ролей, только контент, разделённый двойным переводом строки.
 
 Блоки по 100 слов, LCP по полным SHA256-хэшам.
-Key = sha256(model_id + "\n" + raw_prefix), т.е. модель включена в ключ.
+Key = sha256(model_id + "\\n" + raw_prefix), т.е. модель включена в ключ.
 
 Метафайлы содержат:
 - key
@@ -41,7 +41,6 @@ def raw_prefix(messages: List[Dict]) -> str:
             content = str(content).strip()
         if content:
             parts.append(content)
-    # Без ролей, разделитель — пустая строка между репликами
     text = "\n\n".join(parts).strip()
     log.debug("raw_prefix len_chars=%d", len(text))
     return text
@@ -72,7 +71,7 @@ def lcp_blocks(blocks1: List[str], blocks2: List[str]) -> int:
 
 def prefix_key_sha256(text: str) -> str:
     """
-    Базовая SHA256-обёртка; для кеша в неё передаём model_id + "\n" + raw_prefix.
+    Базовая SHA256-обёртка; для кеша в неё передаём model_id + "\\n" + raw_prefix.
     """
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -156,8 +155,6 @@ def write_meta(
 def touch_meta(key: str) -> None:
     """
     Обновляет timestamp в существующем meta-файле key.meta.json.
-    Используется при «эвикте» горячего слота: после save_slot
-    мета помечается как недавно использованная.
     """
     path = os.path.join(META_DIR, f"{key}.meta.json")
     try:
@@ -173,7 +170,6 @@ def touch_meta(key: str) -> None:
             f.truncate()
         log.debug("touch_meta_ok key=%s", key[:16])
     except FileNotFoundError:
-        # Метаданных может и не быть — это не фатально
         log.warning("touch_meta_missing key=%s", key[:16])
     except Exception as e:
         log.warning("touch_meta_fail key=%s: %s", key[:16], e)

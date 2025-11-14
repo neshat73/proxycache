@@ -3,13 +3,21 @@
 # -*- coding: utf-8 -*-
 
 """
-Simple KV Proxy:
+Simple KV Proxy (бронебойный):
 
-- Большие: LCP→restore на свободный/старый слот, затем чат строго в этот же слот, потом save+meta.
+- Большие: LCP→restore, затем чат строго в этот же слот, потом save+meta.
 - Малые: свободный/старый слот, без restore и без дискового save/meta.
 - Пин slota дублируется в root/options/query (через клиента).
-- Ключи кеша и мета завязаны на model_id, полученный от llama.cpp,
-  но /v1/models прокси по-прежнему отдаёт MODEL_ID из конфигурации.
+
+Дополнительно:
+
+- acquire_for_request обёрнут в таймаут, чтобы не висеть бесконечно, если слот не отпускается.
+- Для stream:
+    * чтение из llama.cpp идёт в отдельной фоновой задаче (reader);
+    * reader пушит чанки в asyncio.Queue;
+    * в своём finally reader всегда делает save_after + write_meta + release(g),
+      и кладёт в очередь sentinel None;
+    * StreamingResponse читает из очереди и никак не влияет на release слота.
 """
 
 import asyncio
@@ -21,12 +29,22 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from config import BACKENDS, BIG_THRESHOLD_WORDS, LCP_TH, MODEL_ID, WORDS_PER_BLOCK, PORT
+from config import (
+    BACKENDS,
+    BIG_THRESHOLD_WORDS,
+    LCP_TH,
+    MODEL_ID,
+    WORDS_PER_BLOCK,
+    PORT,
+)
 import hashing as hs
 from llama_client import LlamaClient
 from slot_manager import SlotManager, GSlot
 
 log = logging.getLogger(__name__)
+
+ACQUIRE_TIMEOUT = 300.0
+STREAM_QUEUE_SIZE = 16
 
 app = FastAPI(title="Simple KV Proxy")
 
@@ -50,11 +68,10 @@ async def shutdown():
 
 @app.get("/v1/models")
 async def models():
-    # Внешний API: всегда отдаём MODEL_ID, как и раньше
     return {"data": [{"id": MODEL_ID}]}
 
 
-async def stream_bytes_gen(
+async def start_stream_task(
     resp: httpx.Response,
     g: GSlot,
     key: str,
@@ -62,30 +79,56 @@ async def stream_bytes_gen(
     blocks: List[str],
     model_id: str,
     sm: SlotManager,
-    is_big: bool,
 ) -> AsyncGenerator[bytes, None]:
-    try:
-        async for chunk in resp.aiter_raw():
-            if chunk:
-                yield chunk
-    finally:
-        try:
-            await resp.aclose()
-        except Exception:
-            pass
+    queue: asyncio.Queue[Optional[bytes]] = asyncio.Queue(maxsize=STREAM_QUEUE_SIZE)
 
-        # После завершения стрима сохраняем только большие запросы
-        ok = await sm.save_after(g, key, is_big=is_big)
-        if is_big:
-            hs.write_meta(key, prefix, blocks, WORDS_PER_BLOCK, model_id)
-        sm.release(g)
-        log.info(
-            "stream_done g=%s key=%s saved=%s is_big=%s",
-            g,
-            key[:16],
-            ok,
-            is_big,
-        )
+    async def reader():
+        try:
+            log.info("stream_reader_start g=%s key=%s", g, key[:16])
+            async for chunk in resp.aiter_raw():
+                if not chunk:
+                    continue
+                try:
+                    await queue.put(chunk)
+                except asyncio.CancelledError:
+                    log.warning("stream_reader_cancelled_put g=%s key=%s", g, key[:16])
+                    raise
+        except asyncio.CancelledError:
+            log.warning("stream_reader_cancelled g=%s key=%s", g, key[:16])
+            raise
+        except Exception as e:
+            log.exception("stream_reader_error g=%s key=%s: %s", g, key[:16], e)
+        finally:
+            try:
+                await resp.aclose()
+            except Exception:
+                pass
+            ok = False
+            try:
+                ok = await sm.save_after(g, key)
+            except Exception as e:
+                log.warning("save_after_exception g=%s key=%s: %s", g, key[:16], e)
+            try:
+                hs.write_meta(key, prefix, blocks, WORDS_PER_BLOCK, model_id)
+            except Exception as e:
+                log.warning("write_meta_exception key=%s: %s", key[:16], e)
+            sm.release(g)
+            log.info("stream_reader_done g=%s key=%s saved=%s", g, key[:16], ok)
+            try:
+                await queue.put(None)
+            except Exception:
+                pass
+
+    asyncio.create_task(reader())
+
+    async def gen() -> AsyncGenerator[bytes, None]:
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield item
+
+    return gen()
 
 
 @app.post("/v1/chat/completions")
@@ -100,15 +143,12 @@ async def chat(req: Request):
     stream = bool(data.get("stream", False))
     client_model = data.get("model") or MODEL_ID
 
-    # model_id для кеша берём у первого backend'а (предполагается, что все backends одинаковые)
-    # Это id из самого llama.cpp, а не клиентское имя модели.
+    # model_id берём у первого backend'а
     backend_model_id = await clients[0].get_model_id()
 
     prefix = hs.raw_prefix(messages)
-    # Ключ завязан и на модель, и на префикс
     full_for_key = backend_model_id + "\n" + prefix
     key = hs.prefix_key_sha256(full_for_key)
-
     blocks = hs.block_hashes_from_text(prefix, WORDS_PER_BLOCK)
     n_words = len(hs.words_from_text(prefix))
     is_big = n_words > BIG_THRESHOLD_WORDS
@@ -137,19 +177,34 @@ async def chat(req: Request):
             BIG_THRESHOLD_WORDS,
         )
 
-    # Получаем слот: логика выбора + обязательный save при эвикте для больших внутри SlotManager
-    # (предполагается обновлённый SlotManager.acquire_for_request(is_big, restore_key))
-    g, lock, restored = await sm.acquire_for_request(
-        is_big=is_big,
-        restore_key=restore_key if is_big else None,
+    log.info(
+        "before_acquire is_big=%s restore_key=%s",
+        is_big,
+        restore_key[:16] if restore_key else None,
     )
+
+    try:
+        g, lock, restored = await asyncio.wait_for(
+            sm.acquire_for_request(restore_key if is_big else None),
+            timeout=ACQUIRE_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        log.error(
+            "acquire_timeout is_big=%s restore_key=%s",
+            is_big,
+            restore_key[:16] if restore_key else None,
+        )
+        return JSONResponse(
+            {"error": "all slots busy, please retry later"},
+            status_code=503,
+        )
+
+    log.info("after_acquire g=%s restored=%s", g, restored)
 
     be_id, slot_id = g
     client = clients[be_id]
 
-    # Формируем тело: корневые флаги для cache_prompt и n_keep
     body = dict(data)
-    # Наружу используем клиентскую модель или MODEL_ID, как и раньше
     body["model"] = client_model
     body["cache_prompt"] = bool(is_big)
     body["n_keep"] = -1
@@ -187,25 +242,22 @@ async def chat(req: Request):
                     status_code=resp.status_code,
                 )
 
-            async def gen():
-                async for chunk in stream_bytes_gen(
-                    resp,
-                    g,
-                    key,
-                    prefix,
-                    blocks,
-                    backend_model_id,
-                    sm,
-                    is_big=is_big,
-                ):
-                    yield chunk
+            gen = await start_stream_task(
+                resp,
+                g,
+                key,
+                prefix,
+                blocks,
+                backend_model_id,
+                sm,
+            )
 
             headers = {
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
             }
             return StreamingResponse(
-                gen(),
+                gen,
                 media_type="text/event-stream",
                 headers=headers,
             )
@@ -223,17 +275,20 @@ async def chat(req: Request):
                     status_code=502,
                 )
 
-            # После нестримового ответа сохраняем только большие запросы
-            ok = await sm.save_after(g, key, is_big=is_big)
-            if is_big:
-                hs.write_meta(
-                    key,
-                    prefix,
-                    blocks,
-                    WORDS_PER_BLOCK,
-                    backend_model_id,
-                )
-            sm.release(g)
+            ok = False
+            try:
+                if is_big:
+                    ok = await sm.save_after(g, key)
+                    hs.write_meta(
+                        key,
+                        prefix,
+                        blocks,
+                        WORDS_PER_BLOCK,
+                        backend_model_id,
+                    )
+            finally:
+                sm.release(g)
+
             log.info(
                 "json_done g=%s key=%s saved=%s is_big=%s dur_ms=%d",
                 g,
